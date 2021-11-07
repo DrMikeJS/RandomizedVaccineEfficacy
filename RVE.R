@@ -57,7 +57,7 @@ covid_by_vax_rates$deaths_per_1000 = covid_by_vax_rates$deaths/covid_by_vax_rate
 heading  = "Covid cases by US County and percent first dose vaccinated: Aug-Oct 2021"
 percent_vaccinated <- covid_by_vax_rates$Administered_Dose1_Pop_Pct
 actual_covid_per_1000 <- covid_by_vax_rates$cases_per_1000
-current_effect <- round(-cor(actual_covid_per_1000, percent_vaccinated),1)
+current_effect <- round(-cor(actual_covid_per_1000, percent_vaccinated),2)
 effectiveness = paste("Actual Cases",current_effect)
 covid_per_1000=actual_covid_per_1000
 FirstDoseCases <- cbind.data.frame(percent_vaccinated,covid_per_1000,effectiveness)
@@ -70,32 +70,35 @@ SimCovid <- function(effectiveness,covid_per_1000,event){
   adj_covid_per_1000 = covid_per_1000
   l<-length(covid_per_1000)
   
-  #loop through each county and move its current value towards its randomised ideal value so long as the correlation is improved
-  for (iterations in 1:20){
-    
-    for (i in 1:l){
+  #loop through each county and move its current value towards its ideal value so long as the correlation is improved
+    #a lognormal distribution adds noise or excludes some changes (if they fall outside the bounds of the graph)
+      #- the parameters are arbitrary (derived from testing); there are other ways of adding noise, but this one seems to work ok
+
+  for (iterations in 1:30){#arbitrary number of iterations that is adequate for this exercise - may need to be revisted if different data used
       
-      adj_covid_per_1000[i] = (covid_per_1000[i]+size-size*percent_vaccinated[i]/100*effectiveness*rlnorm(1,1,0.5))/2
+    changetarget = iterations>20 #if the model isn't converging, we'll set the target effectiveness to 1 to speed things up
+    
+    for(j in 1:l){
+      if(size>20) {i = sample.int(l, 1)} else {i=j} #adds additional randomization for covid cases as they are more random and it makes the resulting plots look more similar to the actual distribution
+      adj_covid_per_1000[i] = (covid_per_1000[i]+size-size*percent_vaccinated[i]/100*ifelse(changetarget,1,effectiveness*rlnorm(1,1,0.5)))/2
       last_effect <- abs(effectiveness-current_effect)
       current_effect <- -cor(adj_covid_per_1000,percent_vaccinated)
-      
       print(current_effect)
       print(iterations)
-      
+        
       if(abs(effectiveness-current_effect)<last_effect&&adj_covid_per_1000[i]>=0&&adj_covid_per_1000[i]<=size) {
-        covid_per_1000[i]=adj_covid_per_1000[i] 
-        if(round(current_effect,1)==effectiveness) break #exit if target correlation reached
+          covid_per_1000[i]=adj_covid_per_1000[i] 
+        } else {
+          adj_covid_per_1000[i]=covid_per_1000[i]
       }
-      
-      else {
-        adj_covid_per_1000[i]=covid_per_1000[i]
-      }
+        if(round(current_effect,2)==effectiveness) break #exit if target correlation reached
     }
+      if(round(current_effect,2)==effectiveness) break #exit if target correlation reached
   }
   
   current_effect <- -cor(covid_per_1000, percent_vaccinated)
   
-  effectiveness=paste(event,round(current_effect,1))
+  effectiveness=paste(event,round(current_effect,2))
   return(cbind.data.frame(percent_vaccinated,covid_per_1000,effectiveness))
 }
 
@@ -104,14 +107,16 @@ FirstDoseCases <- rbind(SimCovid(0.2,actual_covid_per_1000,"Simulated Cases"),Fi
 FirstDoseCases <- rbind(SimCovid(0.4,actual_covid_per_1000,"Simulated Cases"),FirstDoseCases)
 FirstDoseCases <- rbind(SimCovid(0.6,actual_covid_per_1000,"Simulated Cases"),FirstDoseCases)
 FirstDoseCases <- rbind(SimCovid(0.8,actual_covid_per_1000,"Simulated Cases"),FirstDoseCases)
+FirstDoseCases <- rbind(SimCovid(0.95,actual_covid_per_1000,"Simulated Cases"),FirstDoseCases)
 
 #function to make graphs
 scatterplots <- function(inputdata){
   ggplot(inputdata, aes(percent_vaccinated,covid_per_1000, group=effectiveness)) + 
-    geom_smooth(method="lm", color="Black") + 
+    geom_smooth(method="lm", color="black")+#,fill="yellow",se=TRUE,size=0.5) + 
     geom_rug(sides="b") + 
     geom_point(aes(fill=effectiveness), alpha=1/2, shape=21) +
     facet_wrap(~ effectiveness) +
+    ylim(-size/4, NA) +
     ggtitle(heading)
 }
 
@@ -120,7 +125,7 @@ scatterplots(FirstDoseCases)
 #actual deaths by first dose
 heading  = "Covid deaths by US County and percent first dose vaccinated: Aug-Oct 2021"
 actual_covid_per_1000 <- covid_by_vax_rates$deaths_per_1000
-current_effect <- round(-cor(actual_covid_per_1000, percent_vaccinated),1)
+current_effect <- round(-cor(actual_covid_per_1000, percent_vaccinated),2)
 effectiveness = paste("Actual Deaths",current_effect)
 covid_per_1000=actual_covid_per_1000
 FirstDoseDeaths <- cbind.data.frame(percent_vaccinated,covid_per_1000,effectiveness)
@@ -131,39 +136,42 @@ FirstDoseDeaths <- rbind(SimCovid(0.2,actual_covid_per_1000,"Simulated Deaths"),
 FirstDoseDeaths <- rbind(SimCovid(0.4,actual_covid_per_1000,"Simulated Deaths"),FirstDoseDeaths)
 FirstDoseDeaths <- rbind(SimCovid(0.6,actual_covid_per_1000,"Simulated Deaths"),FirstDoseDeaths)
 FirstDoseDeaths <- rbind(SimCovid(0.8,actual_covid_per_1000,"Simulated Deaths"),FirstDoseDeaths)
+FirstDoseDeaths <- rbind(SimCovid(0.95,actual_covid_per_1000,"Simulated Deaths"),FirstDoseDeaths)
 scatterplots(FirstDoseDeaths)
 
 #actual cases by second dose
 heading  = "Covid cases by US County and percent second dose vaccinated: Aug-Oct 2021"
 percent_vaccinated <- covid_by_vax_rates$Series_Complete_Pop_Pct
 actual_covid_per_1000 <- covid_by_vax_rates$cases_per_1000
-current_effect <- round(-cor(actual_covid_per_1000, percent_vaccinated),1)
+current_effect <- round(-cor(actual_covid_per_1000, percent_vaccinated),2)
 effectiveness = paste("Actual Cases",current_effect)
 covid_per_1000=actual_covid_per_1000
 SecondDoseCases <- cbind.data.frame(percent_vaccinated,covid_per_1000,effectiveness)
 size = max(actual_covid_per_1000)
 
 #simulated cases by second dose
-SecondDoseCases <- rbind(SimCovid(0.2,covid_by_vax_rates$cases_per_1000,"Simulated Cases"),SecondDoseCases)
-SecondDoseCases <- rbind(SimCovid(0.4,covid_by_vax_rates$cases_per_1000,"Simulated Cases"),SecondDoseCases)
-SecondDoseCases <- rbind(SimCovid(0.6,covid_by_vax_rates$cases_per_1000,"Simulated Cases"),SecondDoseCases)
-SecondDoseCases <- rbind(SimCovid(0.8,covid_by_vax_rates$cases_per_1000,"Simulated Cases"),SecondDoseCases)
+SecondDoseCases <- rbind(SimCovid(0.2,actual_covid_per_1000,"Simulated Cases"),SecondDoseCases)
+SecondDoseCases <- rbind(SimCovid(0.4,actual_covid_per_1000,"Simulated Cases"),SecondDoseCases)
+SecondDoseCases <- rbind(SimCovid(0.6,actual_covid_per_1000,"Simulated Cases"),SecondDoseCases)
+SecondDoseCases <- rbind(SimCovid(0.8,actual_covid_per_1000,"Simulated Cases"),SecondDoseCases)
+SecondDoseCases <- rbind(SimCovid(0.95,actual_covid_per_1000,"Simulated Cases"),SecondDoseCases)
 scatterplots(SecondDoseCases)
 
 #actual deaths by second dose
 heading  = "Covid deaths by US County and percent second dose vaccinated: Aug-Oct 2021"
 actual_covid_per_1000 <- covid_by_vax_rates$deaths_per_1000
-current_effect <- round(-cor(actual_covid_per_1000, percent_vaccinated),1)
+current_effect <- round(-cor(actual_covid_per_1000, percent_vaccinated),2)
 effectiveness = paste("Actual Deaths",current_effect)
 covid_per_1000=actual_covid_per_1000
 SecondDoseDeaths <- cbind.data.frame(percent_vaccinated,covid_per_1000,effectiveness)
 size = max(actual_covid_per_1000)
 
 #simulated deaths by second dose
-SecondDoseDeaths <- rbind(SimCovid(0.2,covid_by_vax_rates$deaths_per_1000,"Simulated Deaths"),SecondDoseDeaths)
-SecondDoseDeaths <- rbind(SimCovid(0.4,covid_by_vax_rates$deaths_per_1000,"Simulated Deaths"),SecondDoseDeaths)
-SecondDoseDeaths <- rbind(SimCovid(0.6,covid_by_vax_rates$deaths_per_1000,"Simulated Deaths"),SecondDoseDeaths)
-SecondDoseDeaths <- rbind(SimCovid(0.8,covid_by_vax_rates$deaths_per_1000,"Simulated Deaths"),SecondDoseDeaths)
+SecondDoseDeaths <- rbind(SimCovid(0.2,actual_covid_per_1000,"Simulated Deaths"),SecondDoseDeaths)
+SecondDoseDeaths <- rbind(SimCovid(0.4,actual_covid_per_1000,"Simulated Deaths"),SecondDoseDeaths)
+SecondDoseDeaths <- rbind(SimCovid(0.6,actual_covid_per_1000,"Simulated Deaths"),SecondDoseDeaths)
+SecondDoseDeaths <- rbind(SimCovid(0.8,actual_covid_per_1000,"Simulated Deaths"),SecondDoseDeaths)
+SecondDoseDeaths <- rbind(SimCovid(0.95,actual_covid_per_1000,"Simulated Deaths"),SecondDoseDeaths)
 scatterplots(SecondDoseDeaths)
 
   

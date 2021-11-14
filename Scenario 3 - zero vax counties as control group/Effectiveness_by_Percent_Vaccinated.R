@@ -66,14 +66,6 @@ Covid_by_2nd_Dose_by_non_zero_vax_rates = dplyr::select(filter(covid_by_vax_rate
 #function to get effect sizes
 tabulateEffectSizes <- function(control,UseDeaths,vaccinated_counties){
   
-  #any level of vaccination
-  
-  if(UseDeaths){
-    combined_treatment_group=vaccinated_counties$deaths_per_1000 
-  } else {
-    combined_treatment_group=vaccinated_counties$cases_per_1000 
-  }
-  
   print("Control group")
   print(summary(control))
   
@@ -81,27 +73,13 @@ tabulateEffectSizes <- function(control,UseDeaths,vaccinated_counties){
   m1 = mean(control)
   s1 = sd(control)
   
-  n2 = length(combined_treatment_group)
-  m2 = mean(combined_treatment_group)
-  s2 = sd(combined_treatment_group)
-  
-  ci = 1.96*sqrt(s1^2/n1+s2^2/n2)
-  
   effectiveness = head(vaccinated_counties,num_bins)#use existing as template
   
   colnames(effectiveness) <- c("effectiveness","lower_95_CI","upper_95_CI","percent_vaccinated")
   
-  effectiveness$percent_vaccinated <- factor(effectiveness$percent_vaccinated,levels= c("Any>0",levels(factor(vaccinated_counties$percent_vaccinated))))
-  
-  effectiveness[1,"percent_vaccinated"] = "Any>0"
-  
-  effectiveness[1,"effectiveness"] = round((m2-m1)/m1*100)#round for display purposes
-    effectiveness[1,"lower_95_CI"] = ((m2-m1)-ci)/m1*100 #divide by m1 and x 100 to give percentage value
-  effectiveness[1,"upper_95_CI"] = ((m2-m1)+ci)/m1*100
-  
   vaccinated_counties_grouped <- split(vaccinated_counties, f = vaccinated_counties$percent_vaccinated) 
   
-  #specific levels of vaccination
+  #run for specific levels of vaccination
   for(i in 1:num_bins){
     treatment = as.data.frame(vaccinated_counties_grouped[i])
     colnames(treatment)<-c("pct_vax","cases_per_1000","deaths_per_1000","percent_vaccinated")
@@ -121,10 +99,10 @@ tabulateEffectSizes <- function(control,UseDeaths,vaccinated_counties){
     
     ci = 1.96*sqrt(s1^2/n1+s2^2/n2)
     
-    effectiveness[i+1,"percent_vaccinated"] = first(treatment$percent_vaccinated)
-    effectiveness[i+1,"effectiveness"] = round((m2-m1)/m1*100)
-    effectiveness[i+1,"lower_95_CI"] = ((m2-m1)-ci)/m1*100 
-    effectiveness[i+1,"upper_95_CI"] = ((m2-m1)+ci)/m1*100
+    effectiveness[i,"percent_vaccinated"] = first(treatment$percent_vaccinated)
+    effectiveness[i,"effectiveness"] = round((m2-m1)/m1*100)
+    effectiveness[i,"lower_95_CI"] = ((m2-m1)-ci)/m1*100 
+    effectiveness[i,"upper_95_CI"] = ((m2-m1)+ci)/m1*100
   }
   print(effectiveness)
   return(effectiveness)
@@ -132,13 +110,13 @@ tabulateEffectSizes <- function(control,UseDeaths,vaccinated_counties){
 
 #function to graph results
 linePlotWithErrorBars <- function(effectiveness){  
-  ggplot(subset(effectiveness,percent_vaccinated!="Any>0"),aes(x=percent_vaccinated, y=subset(effectiveness,percent_vaccinated!="Any>0"), label=subset(effectiveness,percent_vaccinated!="Any>0"), group = 1)) +
+  ggplot(effectiveness,aes(x=percent_vaccinated, y=effectiveness, label=effectiveness, group = 1)) +
     geom_line(linetype="dashed", color="blue", size=0.8)+
-    geom_hline(linetype="dashed", color="lightblue", yintercept = 0)+#subset(effectiveness$effectiveness,effectiveness$percent_vaccinated=="Any>0"))+
+    geom_hline(linetype="dashed", color="lightblue", yintercept = 0) +
     geom_errorbar(aes(ymin=lower_95_CI, ymax=upper_95_CI), width=.1) +
-    geom_point(color=as.integer(factor(subset(effectiveness$upper_95_CI,effectiveness$percent_vaccinated!="Any>0")>0)), size=3)+
+    geom_point(color=as.integer(factor(effectiveness$upper_95_CI>0)), size=3)+
     labs(title = heading,
-         subtitle ="Change in average incidence per capita from zero-vaccinated counties by percent vaccinated", #subtitle = paste("Percent change of avg. incidence per capita over all levels of vaccination greater than zero: ",subset(effectiveness$effectiveness,effectiveness$percent_vaccinated=="Any>0"),"%"),
+         subtitle ="Change in average incidence per capita from zero-vaccinated counties by percent vaccinated",
          caption = "Data sources: CDC,NYT,ERS",
          y="Percent change in average incidence per capita",
          x="Counties grouped by percent vaccinated in mid-September")+
@@ -152,7 +130,7 @@ linePlotWithErrorBars <- function(effectiveness){
 }
 
 #effect size for cases by first dose
-num_bins = 3 #large enough to get a trend, small enough so that confidence intervals are small
+num_bins = 3 #large enough to get a trend, small enough so that confidence intervals are reasonably small
 
 #split treatment sample into equal groups by percent vaccinated
 Covid_binned_by_1st_Dose_percent <- Covid_by_1st_Dose_by_non_zero_vax_rates %>%

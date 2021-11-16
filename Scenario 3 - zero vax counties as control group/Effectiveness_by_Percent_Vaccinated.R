@@ -7,14 +7,14 @@ county_vax_rates <- read.csv("J:/OneDrive/Covid/COVID-19_Vaccinations_in_the_Uni
 
 county_pop_2019 <- read.csv("J:/OneDrive/Covid/ERS_USDA_People.csv")
 #https://www.ers.usda.gov/data-products/atlas-of-rural-and-small-town-america/download-the-data/
-county_pop_2019 <- dplyr::select(county_pop_2019,ï..FIPS,TotalPopEst2019)
+county_pop_2019 <- select(county_pop_2019,ï..FIPS,TotalPopEst2019)
 
 county_covid_rates <- read.csv("J:/OneDrive/Covid/NYT_us-counties.csv")
 #https://github.com/nytimes/covid-19-data/blob/master/us-counties.csv
 
 #get start and end points of running totals for period of interest
-covid_Oct <- dplyr::select(filter(county_covid_rates, date == "2021-10-31"),c(fips,cases,deaths))
-covid_Aug <- dplyr::select(filter(county_covid_rates, date == "2021-07-30"),c(fips,cases,deaths))
+covid_Oct <- select(filter(county_covid_rates, date == "2021-10-31"),c(fips,cases,deaths))
+covid_Aug <- select(filter(county_covid_rates, date == "2021-07-30"),c(fips,cases,deaths))
 
 #remove data where county is unknown
 covid_Aug <- covid_Aug[!is.na(covid_Aug$fips) ,]
@@ -28,7 +28,7 @@ covid_Aug_Oct$cases <-  covid_Aug_Oct$cases.y - covid_Aug_Oct$cases.x
 covid_Aug_Oct$deaths <- covid_Aug_Oct$deaths.y - covid_Aug_Oct$deaths.x 
 
 #remove obsolete columns
-covid_Aug_Oct <- dplyr::select(covid_Aug_Oct,fips,cases,deaths)
+covid_Aug_Oct <- select(covid_Aug_Oct,fips,cases,deaths)
 
 #remove bad (or revised) data, i.e. negative cases or negative deaths
 covid_Aug_Oct <- covid_Aug_Oct[covid_Aug_Oct$cases>=0 ,]
@@ -38,7 +38,7 @@ covid_Aug_Oct <- covid_Aug_Oct[covid_Aug_Oct$deaths>=0 ,]
 covid_Aug_Oct <- covid_Aug_Oct %>% rename(FIPS = fips)
 
 #calculate percent vaccinated in each county (for simplicity, use mid-point of period of interest)
-pct_vaccinated_mid_period <- dplyr::select(filter(county_vax_rates, ï..Date == "09/15/2021"),c(FIPS,Administered_Dose1_Pop_Pct,Series_Complete_Pop_Pct))
+pct_vaccinated_mid_period <- select(filter(county_vax_rates, ï..Date == "09/15/2021"),c(FIPS,Administered_Dose1_Pop_Pct,Series_Complete_Pop_Pct))
 
 #join rates and vaccination data
 covid_by_vax_rates <- merge(pct_vaccinated_mid_period, covid_Aug_Oct, by = "FIPS")
@@ -50,18 +50,18 @@ county_pop_2019 <- county_pop_2019 %>% rename(FIPS = ï..FIPS)
 covid_by_vax_rates <- merge(county_pop_2019, covid_by_vax_rates, by = "FIPS")
 
 #calculate covid rate per 1000 population (not necessary if already provided in some datasets)
-covid_by_vax_rates$cases_per_1000 = covid_by_vax_rates$cases/covid_by_vax_rates$TotalPopEst2019*1000 #no change in population, so per capita calculation unnecessary
+covid_by_vax_rates$cases_per_1000 = covid_by_vax_rates$cases/covid_by_vax_rates$TotalPopEst2019*1000 
 covid_by_vax_rates$deaths_per_1000 = covid_by_vax_rates$deaths/covid_by_vax_rates$TotalPopEst2019*1000
 
 #calculate background rates from counties with zero percent vaccination
-Background_Covid_1st_Dose=dplyr::select(filter(covid_by_vax_rates,Administered_Dose1_Pop_Pct ==0),c(cases_per_1000,deaths_per_1000))
+Background_Covid_1st_Dose=select(filter(covid_by_vax_rates,Administered_Dose1_Pop_Pct ==0),c(cases_per_1000,deaths_per_1000))
 
-Background_Covid_2nd_Dose=dplyr::select(filter(covid_by_vax_rates,Series_Complete_Pop_Pct ==0),c(cases_per_1000,deaths_per_1000))
+Background_Covid_2nd_Dose=select(filter(covid_by_vax_rates,Series_Complete_Pop_Pct ==0),c(cases_per_1000,deaths_per_1000))
 
 #remove control group from sample
-Covid_by_1st_Dose_by_non_zero_vax_rates = dplyr::select(filter(covid_by_vax_rates,Administered_Dose1_Pop_Pct>0),c(Administered_Dose1_Pop_Pct,cases_per_1000,deaths_per_1000))
+Covid_by_1st_Dose_by_non_zero_vax_rates = select(filter(covid_by_vax_rates,Administered_Dose1_Pop_Pct>0),c(Administered_Dose1_Pop_Pct,cases_per_1000,deaths_per_1000))
 
-Covid_by_2nd_Dose_by_non_zero_vax_rates = dplyr::select(filter(covid_by_vax_rates,Series_Complete_Pop_Pct>0),c(Series_Complete_Pop_Pct,cases_per_1000,deaths_per_1000))
+Covid_by_2nd_Dose_by_non_zero_vax_rates = select(filter(covid_by_vax_rates,Series_Complete_Pop_Pct>0),c(Series_Complete_Pop_Pct,cases_per_1000,deaths_per_1000))
 
 #function to get effect sizes
 tabulateEffectSizes <- function(control,UseDeaths,vaccinated_counties){

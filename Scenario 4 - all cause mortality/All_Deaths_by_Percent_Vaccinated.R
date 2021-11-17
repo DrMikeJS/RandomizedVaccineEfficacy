@@ -129,7 +129,7 @@ linePlotWithErrorBars <- function(effectiveness){
     geom_point(aes(x = percent_vaccinated, y = effectiveness, colour =upper_95_CI<0),size=3) +
     scale_colour_manual(name="Significant Reduction?",values = setNames(c('green','red'),c(T, F))) +
     labs(title = heading,
-         subtitle ="Change in average incidence per capita from zero-vaccinated counties by % vaccinated (95% conf.int.)",
+         subtitle ="Change in avg. incidence per capita from zero-vaccinated counties by % vaccinated (95% conf.int.)",
          caption = "Data sources: CDC,ERS",
          y="Percent change in average incidence per capita",
          x="Percent vaccinated in US Counties by early October")+
